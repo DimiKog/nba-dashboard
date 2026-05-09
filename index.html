@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NBA Dashboard · Dimitris</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #0a0a0a; color: #e8e8e8;
+      min-height: 100vh; padding: 2rem 1rem;
+    }
+    .container { max-width: 1200px; margin: 0 auto; }
+    header { margin-bottom: 1.5rem; }
+    header h1 { font-size: 1.4rem; font-weight: 600; }
+    header p { color: #555; font-size: 0.82rem; margin-top: 4px; }
+    .controls { display: flex; gap: 8px; margin-top: 10px; }
+    .btn {
+      background: none; border: 1px solid #222; color: #555;
+      padding: 5px 12px; border-radius: 6px; cursor: pointer;
+      font-size: 0.75rem; transition: all 0.15s;
+    }
+    .btn:hover { border-color: #444; color: #aaa; }
+
+    .tab-bar {
+      display: flex; gap: 0; margin-bottom: 1.5rem;
+      border-bottom: 1px solid #1a1a1a;
+    }
+    .tab {
+      padding: 8px 18px; cursor: pointer; font-size: 0.8rem;
+      color: #444; border-bottom: 2px solid transparent;
+      margin-bottom: -1px; transition: color 0.15s;
+    }
+    .tab:hover { color: #888; }
+    .tab.active { color: #e8e8e8; border-bottom-color: #3b82f6; }
+    .view { display: none; }
+    .view.active { display: block; }
+
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+    @media (max-width: 640px) { .grid { grid-template-columns: 1fr; } }
+
+    .panel {
+      background: #111; border: 1px solid #1c1c1c;
+      border-radius: 12px; padding: 1.25rem;
+    }
+    .panel-title {
+      font-size: 0.67rem; font-weight: 600; letter-spacing: 0.08em;
+      color: #444; margin-bottom: 1rem; text-transform: uppercase;
+    }
+    .game-row {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 8px 0; border-bottom: 1px solid #171717; font-size: 0.875rem;
+    }
+    .game-row:last-child { border-bottom: none; }
+    .winner { color: #e8e8e8; font-weight: 600; }
+    .loser  { color: #383838; }
+    .meta   { color: #383838; font-size: 0.72rem; }
+    .prob-bar { margin-top: 5px; height: 3px; background: #1c1c1c; border-radius: 2px; overflow: hidden; }
+    .prob-fill { height: 100%; background: #2563eb; border-radius: 2px; }
+    .upcoming-row { padding: 10px 0; border-bottom: 1px solid #171717; }
+    .upcoming-row:last-child { border-bottom: none; }
+    .loading { color: #2a2a2a; font-size: 0.85rem; padding: 8px 0; }
+
+    /* Player section */
+    .leagues-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.5rem;
+    }
+    @media (max-width: 800px) { .leagues-grid { grid-template-columns: 1fr; } }
+
+    .league-panel {
+      background: #111; border: 1px solid #1c1c1c;
+      border-radius: 12px; padding: 1.25rem;
+    }
+    .league-header {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 12px; padding-bottom: 10px;
+      border-bottom: 1px solid #1c1c1c;
+    }
+    .league-name { font-size: 0.88rem; font-weight: 600; }
+    .league-meta { font-size: 0.72rem; color: #444; margin-top: 2px; }
+    .league-badge {
+      font-size: 0.62rem; padding: 3px 8px; border-radius: 4px;
+      font-weight: 600; letter-spacing: 0.04em; white-space: nowrap;
+    }
+    .badge-bdb { background: #1a1a3a; color: #60a5fa; }
+    .badge-ldl { background: #1a2a1a; color: #4ade80; }
+
+    .ptable { width: 100%; border-collapse: collapse; font-size: 0.74rem; }
+    .ptable th {
+      text-align: right; color: #383838; font-weight: 500;
+      padding: 3px 5px; font-size: 0.62rem; letter-spacing: 0.05em;
+      text-transform: uppercase; white-space: nowrap;
+    }
+    .ptable th:first-child { text-align: left; min-width: 110px; }
+    .ptable td {
+      text-align: right; padding: 5px 5px;
+      border-top: 1px solid #141414; color: #666; white-space: nowrap;
+    }
+    .ptable td:first-child { text-align: left; color: #ccc; font-weight: 500; }
+    .ptable tr:hover td { background: #141414; }
+    .ptable tr.divider td { border-top: 1px solid #222; }
+
+    .hi  { color: #4ade80 !important; }
+    .lo  { color: #f87171 !important; }
+    .mid { color: #777; }
+    .dnp-row td { color: #2a2a2a !important; font-style: italic; }
+    .ng-row  td { color: #1e1e1e !important; }
+    .ng-row td:first-child { color: #282828 !important; }
+
+    .cross-dot {
+      display: inline-block; width: 5px; height: 5px;
+      background: #f59e0b; border-radius: 50%;
+      margin-right: 5px; vertical-align: middle; flex-shrink: 0;
+    }
+    .pos-tag { color: #383838; font-size: 0.62rem; margin-left: 4px; }
+
+    .legend {
+      margin-top: 10px; display: flex; flex-wrap: wrap;
+      gap: 12px; font-size: 0.67rem; color: #383838;
+    }
+    .legend span { display: flex; align-items: center; gap: 4px; }
+
+    .cat-count {
+      font-size: 0.67rem; color: #444; margin-top: 2px;
+    }
+    .win-count {
+      font-size: 0.78rem; font-weight: 600;
+      margin-bottom: 10px; padding: 6px 10px;
+      background: #141414; border-radius: 6px;
+      display: flex; justify-content: space-between;
+    }
+    .win-num { color: #4ade80; }
+    .loss-num { color: #f87171; }
+    .tie-num  { color: #777; }
+  </style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <h1>NBA Dashboard</h1>
+    <p id="last-updated">Loading…</p>
+    <div class="controls">
+      <button class="btn" onclick="loadAll()">↻ Refresh</button>
+    </div>
+  </header>
+
+  <div class="tab-bar">
+    <div class="tab active" onclick="showTab('scores')">Scores</div>
+    <div class="tab" onclick="showTab('players')">My Players</div>
+  </div>
+
+  <div id="view-scores" class="view active">
+    <div class="grid">
+      <div class="panel">
+        <div class="panel-title">Recent Results</div>
+        <div id="results"><div class="loading">Loading…</div></div>
+      </div>
+      <div class="panel">
+        <div class="panel-title">Upcoming Games</div>
+        <div id="upcoming"><div class="loading">Loading…</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="view-players" class="view">
+    <div id="players-content"><div class="loading">Loading…</div></div>
+  </div>
+</div>
+
+<script>
+const SHEET_ID = '18SjpSCf8_jn1umitioI2LxlB9aTGRkpRtrbcxy6dTKw';
+
+const CROSS = new Set(['Cam Spencer','Royce O\'Neale','Shaedon Sharpe','Tim Hardaway Jr.']);
+
+// League-specific configuration
+const CFG = {
+  'Satoshi DAO': {
+    label: 'Satoshi DAO', sub: 'BδB', badge: 'badge-bdb',
+    cols:    ['pts','reb','ast','blk','stl','three_pm','to','fg_pct','ft_pct'],
+    headers: ['PTS','REB','AST','BLK','ST','3PTM','TO','FG%','FT%'],
+    thresh: {
+      pts:     { hi:18,  lo:10  },
+      reb:     { hi:7,   lo:4   },
+      ast:     { hi:5,   lo:3   },
+      blk:     { hi:1.5, lo:0.5 },
+      stl:     { hi:1.5, lo:0.5 },
+      three_pm:{ hi:2.5, lo:1   },
+      to:      { hi:1,   lo:3,  inv:true },
+      fg_pct:  { hi:0.48,lo:0.40},
+      ft_pct:  { hi:0.80,lo:0.65},
+    }
+  },
+  'Piraeus Newbies': {
+    label: 'Piraeus Newbies', sub: 'LDL', badge: 'badge-ldl',
+    cols:    ['pts','dreb','oreb','ast','blk','stl','three_pm','to','a_to','fg_pct','ft_pct'],
+    headers: ['PTS','DREB','OREB','AST','BLK','ST','3PTM','TO','A/TO','FG%','FT%'],
+    thresh: {
+      pts:     { hi:18,  lo:10  },
+      dreb:    { hi:5,   lo:3   },
+      oreb:    { hi:2,   lo:0.5 },
+      ast:     { hi:5,   lo:3   },
+      blk:     { hi:1.5, lo:0.5 },
+      stl:     { hi:1.5, lo:0.5 },
+      three_pm:{ hi:2.5, lo:1   },
+      to:      { hi:1,   lo:3,  inv:true },
+      a_to:    { hi:3.0, lo:1.5 },
+      fg_pct:  { hi:0.48,lo:0.40},
+      ft_pct:  { hi:0.80,lo:0.65},
+    }
+  }
+};
+
+function sheetUrl(tab) {
+  return `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(tab)}`;
+}
+function parseSheet(raw) {
+  const json = JSON.parse(raw.substring(47).slice(0,-2));
+  return (json.table.rows||[]).map(r => (r.c||[]).map(c => c ? c.v : null));
+}
+async function fetchTab(tab) {
+  const r = await fetch(sheetUrl(tab));
+  return parseSheet(await r.text());
+}
+
+function cls(key, val, thresh) {
+  if (val === null || val === undefined || val === '') return '';
+  const t = thresh[key]; if (!t) return '';
+  const v = parseFloat(val);
+  if (t.inv) return v <= t.hi ? 'hi' : v >= t.lo ? 'lo' : 'mid';
+  return v >= t.hi ? 'hi' : v <= t.lo ? 'lo' : 'mid';
+}
+
+function fmt(key, val) {
+  if (val === null || val === undefined) return '–';
+  if (key === 'fg_pct' || key === 'ft_pct')
+    return (parseFloat(val)*100).toFixed(1)+'%';
+  if (key === 'a_to') return parseFloat(val).toFixed(1);
+  return Number.isInteger(val) ? val : parseFloat(val).toFixed(1);
+}
+
+function catScore(players, leagueKey) {
+  // Count projected category wins/losses for today's lineup
+  const cfg = CFG[leagueKey];
+  let wins = 0, losses = 0, ties = 0;
+  cfg.cols.forEach(col => {
+    const played = players.filter(p => p.status === 'played' && p[col] !== null);
+    if (!played.length) return;
+    const avg = played.reduce((s,p) => s + parseFloat(p[col]||0), 0) / played.length;
+    const t = cfg.thresh[col]; if (!t) return;
+    const isGood = t.inv ? avg <= (t.hi+t.lo)/2 : avg >= (t.hi+t.lo)/2;
+    const isBad  = t.inv ? avg >= (t.hi+t.lo)/2 : avg <= (t.hi+t.lo)/2;
+    if (isGood) wins++; else if (isBad) losses++; else ties++;
+  });
+  return { wins, losses, ties };
+}
+
+function renderLeague(players, leagueKey) {
+  const cfg = CFG[leagueKey];
+  const played  = players.filter(p => p.status === 'played')
+                         .sort((a,b) => (b.pts||0) - (a.pts||0));
+  const dnp     = players.filter(p => p.status === 'DNP');
+  const noGame  = players.filter(p => p.status === 'no_game');
+  const score   = catScore(played, leagueKey);
+
+  const rows = [
+    ...played.map(p => renderRow(p, cfg, false)),
+    ...dnp.map(p => renderRow(p, cfg, false, 'dnp-row')),
+    ...noGame.map(p => renderRow(p, cfg, false, 'ng-row')),
+  ];
+
+  return `
+    <div class="league-panel">
+      <div class="league-header">
+        <div>
+          <div class="league-name">${cfg.label}</div>
+          <div class="league-meta">${cfg.cols.length} H2H categories</div>
+        </div>
+        <span class="league-badge ${cfg.badge}">${cfg.sub}</span>
+      </div>
+      ${played.length > 0 ? `
+      <div class="win-count">
+        <span>Today's cats</span>
+        <span>
+          <span class="win-num">▲${score.wins}</span> &nbsp;
+          <span class="tie-num">–${score.ties}</span> &nbsp;
+          <span class="loss-num">▼${score.losses}</span>
+        </span>
+      </div>` : ''}
+      <div style="overflow-x:auto">
+        <table class="ptable">
+          <thead><tr>
+            <th>Player</th>
+            ${cfg.headers.map(h => `<th>${h}</th>`).join('')}
+          </tr></thead>
+          <tbody>${rows.join('')}</tbody>
+        </table>
+      </div>
+      <div class="legend">
+        <span><span class="cross-dot"></span>Both rosters</span>
+        <span style="color:#4ade80">● Above threshold</span>
+        <span style="color:#f87171">● Below threshold</span>
+      </div>
+    </div>`;
+}
+
+function renderRow(p, cfg, _, extraClass='') {
+  const isCross = CROSS.has(p.player);
+  const name = `${isCross ? '<span class="cross-dot"></span>' : ''}${p.player}<span class="pos-tag">${p.team||''}</span>`;
+
+  if (extraClass === 'ng-row') {
+    return `<tr class="ng-row"><td>${name}</td>${cfg.cols.map(()=>'<td>–</td>').join('')}</tr>`;
+  }
+  if (extraClass === 'dnp-row') {
+    return `<tr class="dnp-row"><td>${name}</td>${cfg.cols.map(()=>'<td>DNP</td>').join('')}</tr>`;
+  }
+
+  // Compute a_to client-side if missing
+  if (cfg.cols.includes('a_to') && (p.a_to === null || p.a_to === undefined)) {
+    const a = parseFloat(p.ast||0), t = parseFloat(p.to||0);
+    p.a_to = t === 0 ? a : parseFloat((a/t).toFixed(2));
+  }
+
+  const cells = cfg.cols.map(col =>
+    `<td class="${cls(col, p[col], cfg.thresh)}">${fmt(col, p[col])}</td>`
+  ).join('');
+
+  return `<tr><td>${name}</td>${cells}</tr>`;
+}
+
+function mapPlayer(r) {
+  return {
+    date:r[0], player:r[1], team:r[2], league:r[3],
+    pts:r[4],  reb:r[5],   dreb:r[6], oreb:r[7],
+    ast:r[8],  blk:r[9],   stl:r[10], three_pm:r[11],
+    to:r[12],  a_to:r[13], fg_pct:r[14], ft_pct:r[15],
+    minutes:r[16], status:r[17]
+  };
+}
+
+function renderPlayers(rows) {
+  const players = rows.map(mapPlayer).filter(p => p.player);
+  if (!players.length)
+    return '<div class="loading" style="padding:2rem 0">No player data yet — run the routine first.</div>';
+
+  const bdb = players.filter(p => p.league === 'Satoshi DAO' || p.league === 'BOTH');
+  const ldl = players.filter(p => p.league === 'Piraeus Newbies' || p.league === 'BOTH');
+
+  return `<div class="leagues-grid">
+    ${renderLeague(bdb, 'Satoshi DAO')}
+    ${renderLeague(ldl, 'Piraeus Newbies')}
+  </div>`;
+}
+
+function renderResults(rows) {
+  if (!rows.length) return '<div class="loading">No results yet.</div>';
+  return rows.slice(-8).reverse().map(r => {
+    const [,home,away,hs,as_,label,series] = r;
+    const hw = hs > as_;
+    return `<div class="game-row">
+      <div>
+        <div style="display:flex;gap:8px;align-items:center;margin-bottom:3px">
+          <span class="${hw?'winner':'loser'}">${home}</span>
+          <span style="display:flex;gap:5px;font-weight:600">
+            <span class="${hw?'winner':'loser'}">${hs}</span>
+            <span style="color:#222">–</span>
+            <span class="${!hw?'winner':'loser'}">${as_}</span>
+          </span>
+          <span class="${!hw?'winner':'loser'}">${away}</span>
+        </div>
+        ${series?`<div class="meta">${series}</div>`:''}
+      </div>
+      <span class="meta">${label||''}</span>
+    </div>`;
+  }).join('');
+}
+
+function renderUpcoming(rows) {
+  if (!rows.length) return '<div class="loading">No upcoming games.</div>';
+  return rows.slice(0,6).map(r => {
+    const [,home,away,label,time,hp,ap,series] = r;
+    const p = parseFloat(hp)||50;
+    const fav = p>50?home:away, prob = Math.round(Math.max(p,100-p));
+    return `<div class="upcoming-row">
+      <div style="display:flex;justify-content:space-between;font-size:.875rem;margin-bottom:4px">
+        <span>${home} <span style="color:#333">vs</span> ${away}</span>
+        <span style="color:#333;font-size:.72rem;background:#141414;padding:2px 6px;border-radius:4px">${label||''}</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+        <span class="meta">${time||''} EEST</span>
+        <span class="meta">${fav} ${prob}% fav</span>
+      </div>
+      <div class="prob-bar"><div class="prob-fill" style="width:${p}%"></div></div>
+      ${series?`<div class="meta" style="margin-top:4px">${series}</div>`:''}
+    </div>`;
+  }).join('');
+}
+
+function showTab(tab) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.querySelector(`.tab[onclick="showTab('${tab}')"]`).classList.add('active');
+  document.getElementById(`view-${tab}`).classList.add('active');
+}
+
+async function loadAll() {
+  document.getElementById('last-updated').textContent = 'Loading…';
+  try {
+    const [results, upcoming, players] = await Promise.all([
+      fetchTab('results'), fetchTab('upcoming'), fetchTab('players')
+    ]);
+    document.getElementById('results').innerHTML = renderResults(results);
+    document.getElementById('upcoming').innerHTML = renderUpcoming(upcoming);
+    document.getElementById('players-content').innerHTML = renderPlayers(players);
+    document.getElementById('last-updated').textContent =
+      'Updated ' + new Date().toLocaleTimeString('el-GR',
+        {timeZone:'Europe/Athens'}) + ' EEST';
+  } catch(e) {
+    console.error(e);
+    document.getElementById('results').innerHTML =
+      '<div class="loading">Error — is the sheet public?</div>';
+  }
+}
+
+loadAll();
+</script>
+</body>
+</html>
