@@ -464,7 +464,7 @@
       console.error(e);
       const msg = (e && e.message) ? e.message : String(e);
       elResults.innerHTML =
-        '<div class="loading">Could not load data. Check Vercel env (<code>NOTION_TOKEN</code>, <code>DB_*</code>) and that the dev server proxies <code>/api/*</code>.<br><br>' +
+        '<div class="loading">Could not load data. If you see a JSON parse error after a <code>404</code> on <code>/api/*</code>, the serverless routes are missing from the deployment (redeploy after fixing project layout). Otherwise check env: <code>NOTION_TOKEN</code>, <code>DB_RESULTS</code>, <code>DB_UPCOMING</code>, <code>DB_PLAYERS</code>.<br><br>' +
         '<span class="meta">' + msg.replace(/</g, '&lt;') + '</span></div>';
     }
   }

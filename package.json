@@ -1,1 +1,7 @@
-{}
+{
+  "name": "nba-dashboard",
+  "private": true,
+  "engines": {
+    "node": ">=18"
+  }
+}
