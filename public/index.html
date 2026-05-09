@@ -1,10 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>NBA dashboard</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #0a0a0a;
+      --panel: #111;
+      --border: #222;
+      --muted: #888;
+      --text: #e5e5e5;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      line-height: 1.45;
+    }
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      padding: 1rem 1.25rem;
+      border-bottom: 1px solid var(--border);
+      background: var(--panel);
+    }
+    h1 { font-size: 1.1rem; font-weight: 600; margin: 0; letter-spacing: -0.02em; }
+    #last-updated { font-size: 0.8rem; color: var(--muted); }
+    .tabs {
+      display: flex;
+      gap: 0;
+      padding: 0 1rem;
+      background: var(--panel);
+      border-bottom: 1px solid var(--border);
+    }
+    .tab {
+      appearance: none;
+      border: none;
+      background: transparent;
+      color: var(--muted);
+      padding: 0.75rem 1rem;
+      font-size: 0.9rem;
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -1px;
+    }
+    .tab:hover { color: var(--text); }
+    .tab.active {
+      color: var(--text);
+      border-bottom-color: #60a5fa;
+    }
+    main { padding: 1rem 1.25rem 2rem; max-width: 960px; margin: 0 auto; }
+    .view { display: none; }
+    .view.active { display: block; }
+    .section-title {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--muted);
+      margin: 1.25rem 0 0.5rem;
+    }
+    .section-title:first-child { margin-top: 0; }
+    .loading { color: var(--muted); padding: 1rem 0; }
+    .game-row, .upcoming-row {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0.75rem 1rem;
+      margin-bottom: 0.5rem;
+    }
+    .winner { color: #4ade80; }
+    .loser { color: #a3a3a3; }
+    .meta { color: var(--muted); font-size: 0.8rem; }
+    .prob-bar {
+      height: 4px;
+      background: #222;
+      border-radius: 2px;
+      overflow: hidden;
+    }
+    .prob-fill { height: 100%; background: #60a5fa; border-radius: 2px; }
+    .leagues-grid {
+      display: grid;
+      gap: 1rem;
+      grid-template-columns: 1fr;
+    }
+    @media (min-width: 880px) {
+      .leagues-grid { grid-template-columns: 1fr 1fr; }
+    }
+    .league-panel {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1rem;
+    }
+    .league-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 0.75rem;
+    }
+    .league-name { font-weight: 600; }
+    .league-meta { font-size: 0.8rem; color: var(--muted); margin-top: 2px; }
+    .league-badge {
+      font-size: 0.7rem;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-weight: 600;
+    }
+    .badge-bdb { background: #1e3a5f; color: #93c5fd; }
+    .badge-ldl { background: #3f2e1e; color: #fcd34d; }
+    .win-count {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.85rem;
+      margin-bottom: 0.5rem;
+      padding: 0.35rem 0;
+    }
+    .win-num { color: #4ade80; }
+    .tie-num { color: #a3a3a3; }
+    .loss-num { color: #f87171; }
+    .ptable { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+    .ptable th, .ptable td {
+      padding: 0.35rem 0.5rem;
+      text-align: right;
+      border-bottom: 1px solid var(--border);
+    }
+    .ptable th:first-child, .ptable td:first-child { text-align: left; }
+    .ptable th { color: var(--muted); font-weight: 500; }
+    .ptable .hi { color: #4ade80; }
+    .ptable .lo { color: #f87171; }
+    .ptable .mid { color: #d4d4d4; }
+    .ng-row td, .dnp-row td { color: var(--muted); }
+    .pos-tag {
+      display: inline-block;
+      margin-left: 6px;
+      font-size: 0.68rem;
+      color: var(--muted);
+    }
+    .cross-dot::before {
+      content: '';
+      display: inline-block;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #fbbf24;
+      margin-right: 6px;
+      vertical-align: middle;
+    }
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem 1rem;
+      margin-top: 0.75rem;
+      font-size: 0.72rem;
+      color: var(--muted);
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>NBA dashboard</h1>
+    <span id="last-updated"></span>
+  </header>
+  <nav class="tabs">
+    <button type="button" class="tab active" onclick="showTab('games')">Games</button>
+    <button type="button" class="tab" onclick="showTab('players')">Players</button>
+  </nav>
+  <main>
+    <div id="view-games" class="view active">
+      <div class="section-title">Results</div>
+      <div id="results"></div>
+      <div class="section-title">Upcoming</div>
+      <div id="upcoming"></div>
+    </div>
+    <div id="view-players" class="view">
+      <div id="players-content"></div>
+    </div>
+  </main>
+
 <script>
-  // ─── CONFIG ──────────────────────────────────────────────
-  //const NOTION_TOKEN = 'ntn_P6580596269718Be0XaIU6xkqBVdkXydONHr83avsF9gq1';
-  //const DB_RESULTS = '14a856233306423b860a2873d2ab9b90';
-  //const DB_UPCOMING = 'a6a74510b98b4966b9863a20fbb5228a';
-  //const DB_PLAYERS = 'f2a652efcc144b00848dc71ccda9d273';
-  // ─────────────────────────────────────────────────────────
+  // DB IDs must match api/*.js env (Vercel) and queryNotion endpoint map below.
+  const DB_RESULTS = '14a856233306423b860a2873d2ab9b90';
+  const DB_UPCOMING = 'a6a74510b98b4966b9863a20fbb5228a';
+  const DB_PLAYERS = 'f2a652efcc144b00848dc71ccda9d273';
 
   const CROSS = new Set(['Cam Spencer', "Royce O'Neale", 'Shaedon Sharpe', 'Tim Hardaway Jr.']);
 
@@ -38,8 +223,13 @@
       'a6a74510b98b4966b9863a20fbb5228a': '/api/upcoming',
       'f2a652efcc144b00848dc71ccda9d273': '/api/players'
     };
-    const r = await fetch(endpoints[dbId]);
-    return await r.json();
+    const url = endpoints[dbId];
+    if (!url) throw new Error('Unknown database id');
+    const r = await fetch(url);
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.error || r.statusText || 'Request failed');
+    if (!Array.isArray(data)) throw new Error('Unexpected API response');
+    return data;
   }
 
   function prop(page, key, type) {
@@ -253,7 +443,11 @@
   }
 
   async function loadAll() {
-    document.getElementById('last-updated').textContent = 'Loading…';
+    const elUpdated = document.getElementById('last-updated');
+    const elResults = document.getElementById('results');
+    const elUpcoming = document.getElementById('upcoming');
+    const elPlayers = document.getElementById('players-content');
+    elUpdated.textContent = 'Loading…';
     try {
       const f = todayFilter();
       const [results, upcoming, players] = await Promise.all([
@@ -261,17 +455,21 @@
         queryNotion(DB_UPCOMING, f),
         queryNotion(DB_PLAYERS, f)
       ]);
-      document.getElementById('results').innerHTML = renderResults(results);
-      document.getElementById('upcoming').innerHTML = renderUpcoming(upcoming);
-      document.getElementById('players-content').innerHTML = renderPlayers(players);
-      document.getElementById('last-updated').textContent =
+      elResults.innerHTML = renderResults(results);
+      elUpcoming.innerHTML = renderUpcoming(upcoming);
+      elPlayers.innerHTML = renderPlayers(players);
+      elUpdated.textContent =
         'Updated ' + new Date().toLocaleTimeString('el-GR', { timeZone: 'Europe/Athens' }) + ' EEST';
     } catch (e) {
       console.error(e);
-      document.getElementById('results').innerHTML =
-        '<div class="loading">Error — check token and DB IDs in console.</div>';
+      const msg = (e && e.message) ? e.message : String(e);
+      elResults.innerHTML =
+        '<div class="loading">Could not load data. Check Vercel env (<code>NOTION_TOKEN</code>, <code>DB_*</code>) and that the dev server proxies <code>/api/*</code>.<br><br>' +
+        '<span class="meta">' + msg.replace(/</g, '&lt;') + '</span></div>';
     }
   }
 
   document.addEventListener('DOMContentLoaded', loadAll);
 </script>
+</body>
+</html>
